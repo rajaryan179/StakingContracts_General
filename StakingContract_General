@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract Staking {
+    IERC20 public stakingToken;
+    IERC20 public rewardToken;
+    uint256 public rewardRate;
+
+    mapping(address => uint256) public stakingBalance;
+    mapping(address => uint256) public rewardBalance;
+    mapping(address => uint256) public lastStakedTime;
+
+    constructor(address _stakingToken, address _rewardToken, uint256 _rewardRate) {
+        stakingToken = IERC20(_stakingToken);
+        rewardToken = IERC20(_rewardToken);
+        rewardRate = _rewardRate;
+    }
+
+    function stake(uint256 _amount) public {
+        stakingBalance[msg.sender] += _amount;
+        lastStakedTime[msg.sender] = block.timestamp;
+        require(stakingToken.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+    }
+
+    function unstake(uint256 _amount) public {
+        require(stakingBalance[msg.sender] >= _amount, "Insufficient balance");
+        stakingBalance[msg.sender] -= _amount;
+        rewardBalance[msg.sender] += _amount * rewardRate * (block.timestamp - lastStakedTime[msg.sender]);
+        require(stakingToken.transfer(msg.sender, _amount), "Transfer failed");
+    }
+
+    function claimReward() public {
+        uint256 reward = rewardBalance[msg.sender];
+        rewardBalance[msg.sender] = 0;
+        require(rewardToken.transfer(msg.sender, reward), "Transfer failed");
+    }
+}
